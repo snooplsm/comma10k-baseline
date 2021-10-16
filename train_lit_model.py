@@ -24,7 +24,8 @@ def setup_callbacks_loggers(args):
     version = args.version
     tb_logger = TensorBoardLogger(log_path, name=name, version=version)
     lr_logger = LearningRateMonitor(logging_interval='epoch')
-    ckpt_callback = ModelCheckpoint(dirpath=Path(tb_logger.log_dir)/'checkpoints/{epoch:02d}_{val_loss:.4f}', 
+    ckpt_callback = ModelCheckpoint(dirpath=Path(tb_logger.log_dir)/'checkpoints/',
+    filename='{epoch}-{val_loss:.2f}',
                                     save_top_k=1, save_last=True)
    
     return ckpt_callback, tb_logger, lr_logger
