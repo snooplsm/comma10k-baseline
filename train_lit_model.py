@@ -11,7 +11,7 @@ import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.callbacks import LearningRateLogger
+from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.utilities.distributed import rank_zero_only
 from pytorch_lightning.callbacks import Callback
 
@@ -19,13 +19,13 @@ seed_everything(1994)
 
 def setup_callbacks_loggers(args):
     
-    log_path = Path('/home/yyousfi1/LogFiles/comma/')
+    log_path = Path('/content/logs')
     name = args.backbone
     version = args.version
     tb_logger = TensorBoardLogger(log_path, name=name, version=version)
-    lr_logger = LearningRateLogger(logging_interval='epoch')
-    ckpt_callback = ModelCheckpoint(filepath=Path(tb_logger.log_dir)/'checkpoints/{epoch:02d}_{val_loss:.4f}', 
-                                    save_top_k=10, save_last=True)
+    lr_logger = LearningRateMonitor(logging_interval='epoch')
+    ckpt_callback = ModelCheckpoint(dirpath=Path(tb_logger.log_dir)/'checkpoints/{epoch:02d}_{val_loss:.4f}', 
+                                    save_top_k=1, save_last=True)
    
     return ckpt_callback, tb_logger, lr_logger
 
@@ -41,16 +41,15 @@ def main(args):
 
     ckpt_callback, tb_logger, lr_logger = setup_callbacks_loggers(args)
     
-    trainer = Trainer(checkpoint_callback=ckpt_callback,
+    trainer = Trainer(
                      logger=tb_logger,
-                     callbacks=[lr_logger],
+                     callbacks=[lr_logger,ckpt_callback],
                      gpus=args.gpus,
                      min_epochs=args.epochs,
                      max_epochs=args.epochs,
                      precision=16,
                      amp_backend='native',
-                     row_log_interval=100,
-                     log_save_interval=100,
+                     val_check_interval=8,
                      distributed_backend='ddp',
                      benchmark=True,
                      sync_batchnorm=True,

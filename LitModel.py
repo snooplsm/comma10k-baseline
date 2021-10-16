@@ -17,7 +17,7 @@ import pytorch_lightning as pl
 from pytorch_lightning import _logger as log
 import random
 from retriever import *
-from pytorch_lightning.metrics.converters import _sync_ddp_if_available
+# from pytorch_lightning.metrics.converters import _sync_ddp_if_available
 import segmentation_models_pytorch as smp
 
 class LitModel(pl.LightningModule):
@@ -36,7 +36,7 @@ class LitModel(pl.LightningModule):
                  epochs: int = 50, 
                  gpus: int = 1, 
                  weight_decay: float = 1e-3,
-                 class_values: List[int] = [41,  76,  90, 124, 161, 0] # 0 added for padding
+                 class_values: List[int] = [0,  1,  2, 3, 4, 5, 6, 7, 8] # 0 added for padding
                  ,**kwargs) -> None:
         
         super().__init__()
@@ -128,7 +128,7 @@ class LitModel(pl.LightningModule):
         keys = outputs[0].keys()          
         metrics = {}
         for metric_name in keys:
-            metrics[metric_name] = _sync_ddp_if_available(torch.stack([output[metric_name] for output in outputs]).mean(), reduce_op='avg')
+            metrics[metric_name] = torch.stack([output[metric_name] for output in outputs]).mean()
                         
         metrics['step'] = self.current_epoch    
             
@@ -166,14 +166,14 @@ class LitModel(pl.LightningModule):
         print('data ready')
 
     def setup(self, stage: str): 
-
-        image_names = np.loadtxt(self.data_path/'files_trainable', dtype='str').tolist()
+        print(self.data_path,'files_trainable')
+        image_names = np.loadtxt(self.data_path/'files_trainable', dtype='str',delimiter='\n').tolist()
             
         random.shuffle(image_names)
         
         self.train_dataset = TrainRetriever(
             data_path=self.data_path,
-            image_names=[x.split('masks/')[-1] for x in image_names if not x.endswith('9.png')],
+            image_names=[x.split('masks/')[-1] for x in image_names if not x.split("_")[0].endswith('9')],
             preprocess_fn=self.preprocess_fn,
             transforms=get_train_transforms(self.height, self.width, self.augmentation_level),
             class_values=self.class_values
@@ -181,7 +181,7 @@ class LitModel(pl.LightningModule):
         
         self.valid_dataset = TrainRetriever(
             data_path=self.data_path,
-            image_names=[x.split('masks/')[-1] for x in image_names if x.endswith('9.png')],
+            image_names=[x.split('masks/')[-1] for x in image_names if x.split("_")[0].endswith('9')],
             preprocess_fn=self.preprocess_fn,
             transforms=get_valid_transforms(self.height, self.width),
             class_values=self.class_values
